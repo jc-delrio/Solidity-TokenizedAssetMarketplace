@@ -5,12 +5,13 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
  * @title Marketplace
  * @notice Mercado para activos ERC1155.
  */
-contract Marketplace is Ownable, ReentrancyGuard {
+contract Marketplace is Ownable, Pausable, ReentrancyGuard {
 
     error ErrorAddressNotAllowed();
     error ErrorAssetNotAvailable(uint256 id);
@@ -49,6 +50,14 @@ contract Marketplace is Ownable, ReentrancyGuard {
     modifier inputIsPositive(uint data) {
         if (data <= 0) revert ErrorInvalidInput(data);
         _;
+    }
+
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
     }
 
     /**
@@ -168,7 +177,7 @@ contract Marketplace is Ownable, ReentrancyGuard {
         @dev El balance de tokens del comprador debe ser suficiente
         @dev El comprador y el Fondo de Inversion deben aprobar al contrato (Marketplace) para el intercambio
     */
-    function buyAsset(uint256 id, uint56 amount) external nonReentrant inputIsPositive(amount) {
+    function buyAsset(uint256 id, uint56 amount) external nonReentrant inputIsPositive(amount) whenNotPaused {
         // No esta permitido que el fondo adquiera activos (ya los posee)
         if (msg.sender == owner()) revert ErrorAddressNotAllowed();
 
@@ -205,7 +214,7 @@ contract Marketplace is Ownable, ReentrancyGuard {
         @dev El balance de tokens del Fondo de Inversión debe ser suficiente
         @dev El comprador y el Fondo de Inversion deben aprobar al contrato (Marketplace) para el intercambio
     */
-    function sellAsset(uint256 id, uint56 amount) external nonReentrant inputIsPositive(amount) {
+    function sellAsset(uint256 id, uint56 amount) external nonReentrant inputIsPositive(amount) whenNotPaused {
         Asset storage asset = assetList[id];
         // El activo debe estar marcado como negociable
         if(!asset.marketable) revert ErrorAssetNotMarketable(id);

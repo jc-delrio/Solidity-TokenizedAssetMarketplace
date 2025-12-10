@@ -32,19 +32,20 @@ Instead of using `require` with string messages (which increase bytecode size an
 `unchecked` blocks are implemented in operations where overflow/underflow is logically impossible due to prior validations (`if`), saving the gas cost of the automatic checks present in Solidity 0.8+.
 
 ### 4. Security
+- **Pausable**: Allow pause/unpause critical functions if bugs are detected.
 - **ReentrancyGuard**: Implemented in critical value transfer functions (`buyAsset`, `sellAsset`).
 - **Patrón Checks-Effects-Interactions**: Internal contract state is updated before calling external contracts to prevent reentrancy attacks.
 - **Control de Acceso**: Strict use of `Ownable` for administrative inventory management functions.
 
 ## 📚 Main Functions
 
-🛠 For the Administrator (Owner)  
+🛠 For the Fund (Owner)  
 - **listNewAsset**: Registers a new asset in the catalog (ID, Price, Stock).
 - **restockAsset**: Increases the inventory of an existing asset. 
 - **delistAsset**: Removes inventory from the market (unsold stock only).   
 - **updateAsset**: Updates the price or the marketable status of an asset.   
  
-👤 For the User  
+👤 For the Investor  
 - **buyAsset**: Buys assets. Requires: Prior approve of the ERC20 token.  
 - **sellAsset**: Sells assets back to the fund. Requires: Asset marked as marketable and setApprovalForAll of the ERC1155.  
 
