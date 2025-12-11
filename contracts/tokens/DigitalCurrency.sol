@@ -3,9 +3,9 @@ pragma solidity ^0.8.28;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {ERC20Pausable} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol"; //Siguiendo open zeppelin doc
 
-contract DigitalCurrency is ERC20, Ownable, Pausable {
+contract DigitalCurrency is ERC20, Ownable, ERC20Pausable {
 
     constructor() ERC20("digitalCurrency", "CBDC") Ownable(msg.sender){}
 
@@ -15,6 +15,10 @@ contract DigitalCurrency is ERC20, Ownable, Pausable {
 
     function unpause() external onlyOwner {
         _unpause();
+    }
+
+    function _update(address from, address to, uint256 value) internal override(ERC20, ERC20Pausable) {
+        super._update(from, to, value);
     }
 
     function mint(address to, uint128 value) external onlyOwner whenNotPaused {
