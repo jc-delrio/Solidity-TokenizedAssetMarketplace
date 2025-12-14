@@ -26,10 +26,10 @@ contract Acquisition is Ownable, Pausable, ReentrancyGuard {
     IERC1155 private immutable digitalAssets;
 
     struct Asset { // Ajustado para usar 1 Slot
-        uint128 value;
-        uint56 listed;
-        uint56 available;
-        bool marketable;
+        uint128 value; // Valor del activo
+        uint56 listed; // Cantidad ofertada
+        uint56 available; // Cantidad aun disponible
+        bool marketable; // Para determinar si el activo puede negociarse (vender de vuelta al fondo)
     }
 
     mapping(uint256 => Asset) public assetList;
@@ -82,10 +82,10 @@ contract Acquisition is Ownable, Pausable, ReentrancyGuard {
 
         // Se añade nuevo activo
         assetList[id] = Asset({
-            value: value,
-            listed: supply,
-            available: supply,
-            marketable: marketable
+            value: value,  
+            listed: supply, 
+            available: supply, 
+            marketable: marketable 
         });
         
         emit AssetListed(id, supply, value);  
@@ -181,7 +181,7 @@ contract Acquisition is Ownable, Pausable, ReentrancyGuard {
         // No esta permitido que el fondo adquiera activos (ya los posee)
         if (msg.sender == owner()) revert ErrorAddressNotAllowed();
 
-        Asset memory asset = assetList[id];
+        Asset storage asset = assetList[id];
         // Debe estar suministrados activos suficientes
         if (amount > asset.available) revert ErrorInsufficientAssets(asset.available, amount);
 
@@ -192,7 +192,7 @@ contract Acquisition is Ownable, Pausable, ReentrancyGuard {
 
         // Se actualiza disponiblididad de activos. Comprobaciones anteriores garantizan que no será negativo
         unchecked{
-            assetList[id].available -= amount;
+            asset.available -= amount;
         }
 
         //**digitalCurrency: Vendedor debe aprobar totalValue a Marketplace**
