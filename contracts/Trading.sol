@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol"; // Para que el contrato pueda recibir tokens ERC1155
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
@@ -11,7 +12,7 @@ import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
  * @title Delivery vs Payment
  * @notice Intercambio de activos entre inversores
  */
-contract Trading is Ownable, Pausable, ReentrancyGuard {
+contract Trading is Ownable, Pausable, ERC1155Holder, ReentrancyGuard {
 
     error ErrorAssetAlreadyExist(uint256 id);
     error ErrorAmountMustBePositive(uint56 amount);
@@ -33,8 +34,8 @@ contract Trading is Ownable, Pausable, ReentrancyGuard {
 
     mapping (uint256 => mapping(address => Asset)) public offers; // Listado de ofertas de activos
     mapping (uint256 => mapping(address => Asset)) public demands; // Listado de solicitudes de activos
-    mapping (address => uint128) private withdrawableBalances; // Saldo disponible para retirar por cada inversor (en caso de cancelación de oferta o solicitud)
-    mapping (address => uint56) private withdrawableAssets; // Activos disponibles para retirar por cada inversor (en caso de cancelación de oferta)
+    mapping (address => uint128) public withdrawableBalances; // Saldo disponible para retirar por cada inversor (en caso de cancelación de oferta o solicitud)
+    mapping (address => mapping(uint256 => uint56)) public withdrawableAssets; // Activos disponibles para retirar por cada inversor Ids -> Cantidad (en caso de cancelación de oferta)
 
     event AssetRequested(address indexed buyer, uint256 indexed id, uint56 amount, uint128 price);
     event AssetSupplied(address indexed seller, uint256 indexed id, uint56 amount, uint128 price);
@@ -62,7 +63,7 @@ contract Trading is Ownable, Pausable, ReentrancyGuard {
     // *** Demanda de activos ***
 
     /**
-    @notice Solicita un activo para su compra, cuando no se conoce un vendedor
+    @notice Solicita un activo para su compra
     @param id (uint256) Identificador del activo
     @param amount (uint56) Cantidad solicitada
     @param price (uint128) Valor unitario del activo
@@ -73,7 +74,7 @@ contract Trading is Ownable, Pausable, ReentrancyGuard {
     */
     function request(uint256 id, uint56 amount, uint128 price) external whenNotPaused nonReentrant {
         if (amount <= 0) revert ErrorAmountMustBePositive(amount);
-        uint128 value = amount * price; // revisar overflow (limitar cantidad y/o precio??)
+        uint128 value = amount * price;
         uint128 max = type(uint128).max;
         if (value > max) revert ErrorOverflow(max);
 
@@ -129,8 +130,9 @@ contract Trading is Ownable, Pausable, ReentrancyGuard {
         uint256 sellerBalance = digitalAssets.balanceOf(msg.sender, id);
         if (sellerBalance < amount) revert ErrorNotEnoughBalance(amount);
 
+        uint128 price = asset.price;
         asset.amount -= amount;
-        uint128 value = amount * asset.price;
+        uint128 value = amount * price;
 
         if (asset.amount == 0) {
             asset.price = 0;
@@ -140,9 +142,9 @@ contract Trading is Ownable, Pausable, ReentrancyGuard {
         // ** Vendedor necesita aprobar traspaso de activos al contrato
         digitalAssets.safeTransferFrom(msg.sender, buyer, id, amount, "");
         
-        digitalCurrency.transferFrom(address(this), msg.sender, value);
+        digitalCurrency.transfer(msg.sender, value);
 
-        emit AssetSold(msg.sender, buyer, id, amount, asset.price);
+        emit AssetSold(msg.sender, buyer, id, amount, price);
     }
 
     /**
@@ -175,7 +177,7 @@ contract Trading is Ownable, Pausable, ReentrancyGuard {
         delete withdrawableBalances[msg.sender];
 
         // Devolver balance al inversor
-        digitalCurrency.transferFrom(address(this), msg.sender, withdrawable);
+        digitalCurrency.transfer(msg.sender, withdrawable);
 
         emit CurrencyWithdrawn(msg.sender, withdrawable);
     }
@@ -189,7 +191,7 @@ contract Trading is Ownable, Pausable, ReentrancyGuard {
     // No se permite ofrecer si el contrato está pausado
 
     /**
-    @notice Oferta un activo para su venta, cuando no se conoce un comprador
+    @notice Oferta un activo para su venta
     @param id (uint256) Identificador del activo
     @param amount (uint56) Cantidad solicitada
     @param price (uint128) Valor unitario del activo
@@ -253,19 +255,19 @@ contract Trading is Ownable, Pausable, ReentrancyGuard {
 
         if (digitalCurrency.balanceOf(msg.sender) < value) revert ErrorNotEnoughBalance(value);
 
+        uint128 price = asset.price;
         asset.amount -= amount;
-
         if (asset.amount == 0) {
             asset.price = 0;
             asset.approved = false;
         }
 
         // ** Comprador necesita aprobar traspaso de tokens al contrato
-        digitalCurrency.transferFrom(msg.sender, address(this), value);
+        digitalCurrency.transferFrom(msg.sender, seller, value);
 
         digitalAssets.safeTransferFrom(address(this), msg.sender, id, amount, "");
 
-        emit AssetBought(msg.sender, seller, id, amount, asset.price);
+        emit AssetBought(msg.sender, seller, id, amount, price);
     }
 
 
@@ -279,7 +281,7 @@ contract Trading is Ownable, Pausable, ReentrancyGuard {
         Asset storage asset = offers[id][msg.sender];
         if (asset.amount == 0) revert ErrorAssetNotExist(id);
 
-        withdrawableAssets[msg.sender] = asset.amount;
+        withdrawableAssets[msg.sender][id] = asset.amount;
         asset.amount = 0;
         asset.price = 0;
         asset.approved = false;
@@ -293,10 +295,10 @@ contract Trading is Ownable, Pausable, ReentrancyGuard {
         @dev Los activos disponibles se transfieren del contrato al inversor
     */
     function withdrawAssets(uint256 id) external whenNotPaused nonReentrant {
-        uint56 withdrawable = withdrawableAssets[msg.sender];
+        uint56 withdrawable = withdrawableAssets[msg.sender][id];
         if (withdrawable <= 0) revert ErrorNotEnoughBalance(withdrawable);
 
-        delete withdrawableAssets[msg.sender];
+        delete withdrawableAssets[msg.sender][id];
 
         // Devolver activos al inversor
         digitalAssets.safeTransferFrom(address(this), msg.sender, id, withdrawable, "");
