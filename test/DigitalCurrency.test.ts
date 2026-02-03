@@ -15,7 +15,7 @@ describe("Bateria Test Digital Currency:", () => {
     }
 
     it("TEST 1 - Verificación de minteos)", async () => {
-        const {currency, fund, investor1} = await networkHelpers.loadFixture(deployCurrencyFixture);
+        const { currency, fund, investor1 } = await networkHelpers.loadFixture(deployCurrencyFixture);
 
         console.log("Se asignan 100.000 tokens al Fondo de Inversión");
         await currency.write.mint([fund.account.address, 100000n]);
@@ -31,7 +31,7 @@ describe("Bateria Test Digital Currency:", () => {
     });
 
     it("TEST 2 - Pause bloquea funciones críticas (mint, burn)", async () => {
-        const {currency, fund} = await networkHelpers.loadFixture(deployCurrencyFixture);
+        const { currency, fund } = await networkHelpers.loadFixture(deployCurrencyFixture);
         const increment = 100n;
 
         // Pausar contrato
@@ -45,12 +45,12 @@ describe("Bateria Test Digital Currency:", () => {
         });
 
         await assert.rejects(async () => {
-            await currency.write.burn([fund.account.address, increment]);
+            await currency.write.burn([increment]);
         });
     });
 
     it("TEST 3 - pause -> unpause: desbloquea las funciones críticas (mint, burn)", async () => {
-        const {currency, fund} = await networkHelpers.loadFixture(deployCurrencyFixture);
+        const { currency, fund } = await networkHelpers.loadFixture(deployCurrencyFixture);
         const initialBalance = await currency.read.balanceOf([fund.account.address]);
         const increment = 100n;
 
@@ -67,29 +67,29 @@ describe("Bateria Test Digital Currency:", () => {
         // Funcionalidad de minteo y quema desbloqueada
         await assert.doesNotReject(async () => {
             await currency.write.mint([fund.account.address, increment]);
-        }, async ()=>{
+        }, async () => {
             const mintedBalance = await currency.read.balanceOf([fund.account.address]);
             assert.equal(mintedBalance, initialBalance + increment);
         });
 
         await assert.doesNotReject(async () => {
-            await currency.write.burn([fund.account.address, increment]);
-        }, async ()=>{
+            await currency.write.burn([increment]);
+        }, async () => {
             const burnedBalance = await currency.read.balanceOf([fund.account.address]);
             assert.equal(burnedBalance, initialBalance);
         });
     });
 
     it("TEST 4 - Solo el Fondo puede desplegar/quemar tokens", async () => {
-        const {currency, investor1} = await networkHelpers.loadFixture(deployCurrencyFixture);
+        const { currency, investor1 } = await networkHelpers.loadFixture(deployCurrencyFixture);
 
         // REVERT: Intento de minteo y quema por parte de un inversor
         await assert.rejects(async () => {
-            await currency.write.mint([investor1.account.address, 100n], {account: investor1.account});
+            await currency.write.mint([investor1.account.address, 100n], { account: investor1.account });
         });
 
         await assert.rejects(async () => {
-            await currency.write.burn([investor1.account.address, 100n], {account: investor1.account});
+            await currency.write.burn([100n], { account: investor1.account });
         })
     });
 });
