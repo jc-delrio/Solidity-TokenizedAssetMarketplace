@@ -6,8 +6,6 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
 contract DigitalAssets is ERC1155, Ownable, Pausable {
-    error ErrorDataOverflow(uint256 max);
-
     constructor() ERC1155("") Ownable(msg.sender) {
         string memory _baseURI = "https://gateway.pinata.cloud/ipfs/HASH/";
         _setURI(string.concat(_baseURI, "{id}.json"));
@@ -36,11 +34,6 @@ contract DigitalAssets is ERC1155, Ownable, Pausable {
         uint256[] memory values,
         bytes memory data
     ) external onlyOwner whenNotPaused {
-        // El valor del token debe acaber en uint56
-        for (uint i; i < values.length; i++) {
-            if (values[i] > type(uint56).max)
-                revert ErrorDataOverflow(type(uint56).max);
-        }
         _mintBatch(to, ids, values, data);
     }
 

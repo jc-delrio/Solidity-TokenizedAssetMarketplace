@@ -110,8 +110,6 @@ contract Trading is Ownable, Pausable, ERC1155Holder, ReentrancyGuard {
     ) external whenNotPaused nonReentrant {
         if (amount <= 0) revert ErrorAmountMustBePositive(amount);
         uint256 value = amount * price;
-        uint256 max = type(uint256).max;
-        if (value > max) revert ErrorOverflow(max);
 
         Asset storage asset = demands[id][msg.sender];
         if (asset.amount > 0) revert ErrorAssetAlreadyExist(id);

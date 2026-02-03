@@ -5,7 +5,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {
     ERC20Pausable
-} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol"; //Siguiendo open zeppelin doc
+} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
 
 contract DigitalCurrency is ERC20, Ownable, ERC20Pausable {
     constructor() ERC20("digitalCurrency", "CBDC") Ownable(msg.sender) {}
