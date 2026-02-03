@@ -60,9 +60,9 @@ contract Acquisition is Ownable, Pausable, ReentrancyGuard {
         digitalAssets = IERC1155(_digitalAssets);
     }
 
-    // Modificador para comprobar entrada de datos positiva (Uso repetido en varias funciones)
-    modifier inputIsPositive(uint data) {
-        if (data <= 0) revert ErrorInvalidInput(data);
+    // Modificador para comprobar entrada de datos (Uso repetido en varias funciones)
+    modifier inputChecks(uint data) {
+        if (data == 0) revert ErrorInvalidInput(data);
         _;
     }
 
@@ -81,7 +81,7 @@ contract Acquisition is Ownable, Pausable, ReentrancyGuard {
     @param value (uint256) Valor unitario del activo
     @param marketable (bool) Si el activo es negociable o no
         @dev Solo el Fondo de Inversión puede suministrar activos
-        @dev La cantidad a suministrar y el valor del activo deben ser positivos
+        @dev La cantidad a suministrar y el valor del activo deben ser mayor a cero
         @dev El activo NO debe estar suministrado previamente
         @dev El fondo debe poseer la cantidad que desea suministrar
     */
@@ -90,7 +90,7 @@ contract Acquisition is Ownable, Pausable, ReentrancyGuard {
         uint256 supply,
         uint256 value,
         bool marketable
-    ) external onlyOwner inputIsPositive(supply) inputIsPositive(value) {
+    ) external onlyOwner inputChecks(supply) inputChecks(value) {
         Asset storage asset = assetList[id];
         // El activo no debe estar suministrado
         if (asset.listed > 0) revert ErrorAssetAlreadyListed(id);
@@ -115,7 +115,7 @@ contract Acquisition is Ownable, Pausable, ReentrancyGuard {
     @param id (uint256) Identificador del activo
     @param supply (uint256) Cantidad a suministrar
         @dev Solo el Fondo de Inversión puede suministrar activos
-        @dev La cantidad a suministrar debe ser positiva
+        @dev La cantidad a suministrar debe ser mayor a cero
         @dev El activo DEBE estar suministrado previamente
         @dev No debe superar la cantidad máxima de activos disponibles
         @dev El fondo debe poseer la cantidad que desea suministrar
@@ -123,7 +123,7 @@ contract Acquisition is Ownable, Pausable, ReentrancyGuard {
     function restockAsset(
         uint256 id,
         uint256 supply
-    ) external onlyOwner inputIsPositive(supply) {
+    ) external onlyOwner inputChecks(supply) {
         Asset storage asset = assetList[id];
         // El activo debe estar suministrado
         if (asset.listed == 0) revert ErrorAssetNotAvailable(id);
@@ -149,14 +149,14 @@ contract Acquisition is Ownable, Pausable, ReentrancyGuard {
     @param id (uint256) Identificador del activo
     @param desupply (uint256) Cantidad a desabastecer
         @dev Solo el Fondo de Inversión puede desabastecer activos
-        @dev La cantidad a desabastecer debe ser positiva
+        @dev La cantidad a desabastecer debe ser mayor a cero
         @dev El activo DEBE estar suministrado previamente
         @dev No debe superar la cantidad de activos disponibles (suministrados y aún sin vender)
     */
     function delistAsset(
         uint256 id,
         uint256 desupply
-    ) external onlyOwner inputIsPositive(desupply) {
+    ) external onlyOwner inputChecks(desupply) {
         Asset storage asset = assetList[id];
         // El activo debe estar suministrado previamente
         if (asset.listed == 0) revert ErrorAssetNotAvailable(id);
@@ -180,14 +180,14 @@ contract Acquisition is Ownable, Pausable, ReentrancyGuard {
     @param value (uint256) Valor unitario del activo
     @param marketable (bool) Si el activo es negociable o no
         @dev Solo el Fondo de Inversión puede actualizar activos
-        @dev El valor unitario del activo debe ser positivo
+        @dev El valor unitario del activo debe ser mayor a cero
         @dev El activo DEBE estar suministrado previamente
     */
     function updateAsset(
         uint256 id,
         uint256 value,
         bool marketable
-    ) external onlyOwner inputIsPositive(value) {
+    ) external onlyOwner inputChecks(value) {
         Asset storage asset = assetList[id];
         // Asset debe estar suministrado previamente
         if (asset.listed == 0) revert ErrorAssetNotAvailable(id);
@@ -202,7 +202,7 @@ contract Acquisition is Ownable, Pausable, ReentrancyGuard {
     @notice Compra de activos
     @param id (uint256) Identificador del activo
     @param amount (uint256) Cantidad de activos a comprar
-        @dev La cantidad de activos a comprar debe ser positiva
+        @dev La cantidad de activos a comprar debe ser mayor a cero
         @dev No se permite la compra por parte del Fondo de Inversion (Ya posee los activos)
         @dev Los activos solicitados deben estar disponibles
         @dev El balance de tokens del comprador debe ser suficiente
@@ -211,7 +211,7 @@ contract Acquisition is Ownable, Pausable, ReentrancyGuard {
     function buyAsset(
         uint256 id,
         uint256 amount
-    ) external nonReentrant inputIsPositive(amount) whenNotPaused {
+    ) external nonReentrant inputChecks(amount) whenNotPaused {
         // No esta permitido que el fondo adquiera activos (ya los posee)
         if (msg.sender == owner()) revert ErrorAddressNotAllowed();
 
@@ -244,7 +244,7 @@ contract Acquisition is Ownable, Pausable, ReentrancyGuard {
     @notice Venta de activos hacia el Fondo de Inversión
     @param id (uint256) Identificador del activo
     @param amount (uint256) Cantidad de activos a vender
-        @dev La cantidad de activos a vender debe ser positiva
+        @dev La cantidad de activos a vender debe ser mayor a cero
         @dev El activo debe estar marcado como negociable (marketable)
         @dev El vendedor debe disponer de los activos ofrecidos
         @dev El balance de tokens del Fondo de Inversión debe ser suficiente
@@ -253,7 +253,7 @@ contract Acquisition is Ownable, Pausable, ReentrancyGuard {
     function sellAsset(
         uint256 id,
         uint256 amount
-    ) external nonReentrant inputIsPositive(amount) whenNotPaused {
+    ) external nonReentrant inputChecks(amount) whenNotPaused {
         Asset storage asset = assetList[id];
         // El activo debe estar marcado como negociable
         if (!asset.marketable) revert ErrorAssetNotMarketable(id);
