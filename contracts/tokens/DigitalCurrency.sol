@@ -30,7 +30,7 @@ contract DigitalCurrency is ERC20, Ownable, ERC20Pausable {
         _mint(to, value);
     }
 
-    function burn(address to, uint256 value) external onlyOwner whenNotPaused {
-        _burn(to, value);
+    function burn(uint256 value) external whenNotPaused {
+        _burn(msg.sender, value);
     }
 }

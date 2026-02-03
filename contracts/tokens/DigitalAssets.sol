@@ -37,12 +37,8 @@ contract DigitalAssets is ERC1155, Ownable, Pausable {
         _mintBatch(to, ids, values, data);
     }
 
-    function burn(
-        address from,
-        uint256 id,
-        uint56 value
-    ) external onlyOwner whenNotPaused {
-        _burn(from, id, value);
+    function burn(uint256 id, uint56 value) external whenNotPaused {
+        _burn(msg.sender, id, value);
     }
 
     function setURI(string memory newURI) external onlyOwner {
