@@ -3,9 +3,13 @@ pragma solidity ^0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
-import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol"; // Para que el contrato pueda recibir tokens ERC1155
+import {
+    ERC1155Holder
+} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol"; // Para que el contrato pueda recibir tokens ERC1155
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {
+    ReentrancyGuard
+} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
@@ -13,41 +17,68 @@ import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
  * @notice Intercambio de activos entre inversores
  */
 contract Trading is Ownable, Pausable, ERC1155Holder, ReentrancyGuard {
-
     error ErrorAssetAlreadyExist(uint256 id);
-    error ErrorAmountMustBePositive(uint56 amount);
-    error ErrorNotEnoughBalance(uint request);
+    error ErrorAmountMustBePositive(uint256 amount);
+    error ErrorNotEnoughBalance(uint256 request);
     error ErrorOverflow(uint max);
     error ErrorAssetNotExist(uint256 id);
-    error ErrorAmountExceded(uint56 request);
-    error ErrorValueMustBePositive(uint128 value);
+    error ErrorAmountExceded(uint256 request);
+    error ErrorValueMustBePositive(uint256 value);
 
-    struct Asset { // Ocupa 1 Slot
-        //address investor; // Dirección del inversor que realizó la oferta o solicitud
-        uint56 amount; // Cantidad de tokens
-        uint128 price;  // Precio por token en currency
+    struct Asset {
+        uint256 amount; // Cantidad de tokens
+        uint256 price; // Precio por token en currency
         bool approved; // Aprobado por el fondo
     }
 
     IERC20 private immutable digitalCurrency;
     IERC1155 private immutable digitalAssets;
 
-    mapping (uint256 => mapping(address => Asset)) public offers; // Listado de ofertas de activos
-    mapping (uint256 => mapping(address => Asset)) public demands; // Listado de solicitudes de activos
-    mapping (address => uint128) public withdrawableBalances; // Saldo disponible para retirar por cada inversor (en caso de cancelación de oferta o solicitud)
-    mapping (address => mapping(uint256 => uint56)) public withdrawableAssets; // Activos disponibles para retirar por cada inversor Ids -> Cantidad (en caso de cancelación de oferta)
+    mapping(uint256 => mapping(address => Asset)) public offers; // Listado de ofertas de activos
+    mapping(uint256 => mapping(address => Asset)) public demands; // Listado de solicitudes de activos
+    mapping(address => uint256) public withdrawableBalances; // Saldo disponible para retirar por cada inversor (en caso de cancelación de oferta o solicitud)
+    mapping(address => mapping(uint256 => uint256)) public withdrawableAssets; // Activos disponibles para retirar por cada inversor Ids -> Cantidad (en caso de cancelación de oferta)
 
-    event AssetRequested(address indexed buyer, uint256 indexed id, uint56 amount, uint128 price);
-    event AssetSupplied(address indexed seller, uint256 indexed id, uint56 amount, uint128 price);
-    event AssetSold(address indexed seller,  address indexed buyer, uint256 indexed id, uint56 amount, uint128 price);
-    event AssetBought(address indexed buyer, address indexed seller, uint256 indexed id, uint56 amount, uint128 price);
+    event AssetRequested(
+        address indexed buyer,
+        uint256 indexed id,
+        uint256 amount,
+        uint256 price
+    );
+    event AssetSupplied(
+        address indexed seller,
+        uint256 indexed id,
+        uint256 amount,
+        uint256 price
+    );
+    event AssetSold(
+        address indexed seller,
+        address indexed buyer,
+        uint256 indexed id,
+        uint256 amount,
+        uint256 price
+    );
+    event AssetBought(
+        address indexed buyer,
+        address indexed seller,
+        uint256 indexed id,
+        uint256 amount,
+        uint256 price
+    );
     event RequestCancelled(address indexed buyer, uint256 indexed id);
     event SupplyCancelled(address indexed seller, uint256 indexed id);
-    event CurrencyWithdrawn(address indexed investor, uint128 amount);
-    event AssetsWithdrawn(address indexed investor, uint256 indexed id, uint56 amount);
+    event CurrencyWithdrawn(address indexed investor, uint256 amount);
+    event AssetsWithdrawn(
+        address indexed investor,
+        uint256 indexed id,
+        uint256 amount
+    );
     event FundApproved(address indexed investor, uint256 indexed id);
 
-    constructor(address _digitalCurrency, address _digitalAssets) Ownable(msg.sender) {
+    constructor(
+        address _digitalCurrency,
+        address _digitalAssets
+    ) Ownable(msg.sender) {
         digitalCurrency = IERC20(_digitalCurrency);
         digitalAssets = IERC1155(_digitalAssets);
     }
@@ -65,23 +96,28 @@ contract Trading is Ownable, Pausable, ERC1155Holder, ReentrancyGuard {
     /**
     @notice Solicita un activo para su compra
     @param id (uint256) Identificador del activo
-    @param amount (uint56) Cantidad solicitada
-    @param price (uint128) Valor unitario del activo
+    @param amount (uint256) Cantidad solicitada
+    @param price (uint256) Valor unitario del activo
         @dev La cantidad solicitada debe ser positiva
         @dev El inversor debe tener el balance suficiente para la solicitud
         @dev Deposita el precio del pedido (modenda digital) en el contrato como garantía
         @dev Un inversor no puede tener mas de una solicitud de un mismo activo. Si quiere modificarla, debe cancelarla e iniciar una nueva
     */
-    function request(uint256 id, uint56 amount, uint128 price) external whenNotPaused nonReentrant {
+    function request(
+        uint256 id,
+        uint256 amount,
+        uint256 price
+    ) external whenNotPaused nonReentrant {
         if (amount <= 0) revert ErrorAmountMustBePositive(amount);
-        uint128 value = amount * price;
-        uint128 max = type(uint128).max;
+        uint256 value = amount * price;
+        uint256 max = type(uint256).max;
         if (value > max) revert ErrorOverflow(max);
 
         Asset storage asset = demands[id][msg.sender];
-        if (asset.amount > 0) revert ErrorAssetAlreadyExist(id); 
+        if (asset.amount > 0) revert ErrorAssetAlreadyExist(id);
 
-        if (digitalCurrency.balanceOf(msg.sender) < value) revert ErrorNotEnoughBalance(value);
+        if (digitalCurrency.balanceOf(msg.sender) < value)
+            revert ErrorNotEnoughBalance(value);
 
         //asset.investor = msg.sender;
         asset.amount = amount;
@@ -109,18 +145,21 @@ contract Trading is Ownable, Pausable, ERC1155Holder, ReentrancyGuard {
         emit FundApproved(investor, id);
     }
 
-
     /**
     @notice Vende un activo a un inversor que realizó una solicitud aprobada
     @param buyer (address) Dirección del inversor que realizó la solicitud
     @param id (uint256) Identificador del activo
-    @param amount (uint56) Cantidad solicitada
+    @param amount (uint256) Cantidad solicitada
         @dev La cantidad a vender debe ser positiva
         @dev La solicitud debe existir y estar aprobada por el fondo
         @dev La cantidad a vender no puede exceder la cantidad solicitada
         @dev El inversor debe tener el balance suficiente para la solicitud
     */
-    function sellAsset(address buyer, uint256 id, uint56 amount) external whenNotPaused nonReentrant {
+    function sellAsset(
+        address buyer,
+        uint256 id,
+        uint256 amount
+    ) external whenNotPaused nonReentrant {
         if (amount <= 0) revert ErrorAmountMustBePositive(amount);
 
         Asset storage asset = demands[id][buyer];
@@ -130,9 +169,9 @@ contract Trading is Ownable, Pausable, ERC1155Holder, ReentrancyGuard {
         uint256 sellerBalance = digitalAssets.balanceOf(msg.sender, id);
         if (sellerBalance < amount) revert ErrorNotEnoughBalance(amount);
 
-        uint128 price = asset.price;
+        uint256 price = asset.price;
         asset.amount -= amount;
-        uint128 value = amount * price;
+        uint256 value = amount * price;
 
         if (asset.amount == 0) {
             asset.price = 0;
@@ -141,7 +180,7 @@ contract Trading is Ownable, Pausable, ERC1155Holder, ReentrancyGuard {
 
         // ** Vendedor necesita aprobar traspaso de activos al contrato
         digitalAssets.safeTransferFrom(msg.sender, buyer, id, amount, "");
-        
+
         digitalCurrency.transfer(msg.sender, value);
 
         emit AssetSold(msg.sender, buyer, id, amount, price);
@@ -159,7 +198,7 @@ contract Trading is Ownable, Pausable, ERC1155Holder, ReentrancyGuard {
 
         withdrawableBalances[msg.sender] += asset.amount * asset.price;
         asset.amount = 0;
-        asset.price = 0;   
+        asset.price = 0;
         asset.approved = false;
 
         emit RequestCancelled(msg.sender, id);
@@ -170,8 +209,8 @@ contract Trading is Ownable, Pausable, ERC1155Holder, ReentrancyGuard {
         @dev El balance disponible debe ser positivo
         @dev El balance disponible se transfiere del contrato al inversor
     */
-    function withdrawBalance() external whenNotPaused nonReentrant{
-        uint128 withdrawable = withdrawableBalances[msg.sender];
+    function withdrawBalance() external whenNotPaused nonReentrant {
+        uint256 withdrawable = withdrawableBalances[msg.sender];
         if (withdrawable < 0) revert ErrorNotEnoughBalance(withdrawable);
 
         delete withdrawableBalances[msg.sender];
@@ -181,7 +220,6 @@ contract Trading is Ownable, Pausable, ERC1155Holder, ReentrancyGuard {
 
         emit CurrencyWithdrawn(msg.sender, withdrawable);
     }
-
 
     // *** Ofertas de activos ***
 
@@ -193,27 +231,38 @@ contract Trading is Ownable, Pausable, ERC1155Holder, ReentrancyGuard {
     /**
     @notice Oferta un activo para su venta
     @param id (uint256) Identificador del activo
-    @param amount (uint56) Cantidad solicitada
-    @param price (uint128) Valor unitario del activo
+    @param amount (uint256) Cantidad solicitada
+    @param price (uint256) Valor unitario del activo
         @dev La cantidad ofertada debe ser positiva
         @dev El inversor debe tener los activos suficiente para la oferta
         @dev Deposita los activos ofrecidos en el contrato como garantía
         @dev Un inversor no puede tener mas de una oferta de un mismo activo. Si quiere modificarla, debe cancelarla e iniciar una nueva
     */
-    function supply(uint256 id, uint56 amount, uint128 price) external whenNotPaused nonReentrant {
+    function supply(
+        uint256 id,
+        uint256 amount,
+        uint256 price
+    ) external whenNotPaused nonReentrant {
         if (amount <= 0) revert ErrorAmountMustBePositive(amount);
         if (price <= 0) revert ErrorValueMustBePositive(price);
 
         Asset storage asset = offers[id][msg.sender];
-        if (asset.amount > 0) revert ErrorAssetAlreadyExist(id); 
+        if (asset.amount > 0) revert ErrorAssetAlreadyExist(id);
 
-        if (digitalAssets.balanceOf(msg.sender, id) < amount) revert ErrorNotEnoughBalance(amount);
+        if (digitalAssets.balanceOf(msg.sender, id) < amount)
+            revert ErrorNotEnoughBalance(amount);
 
         asset.amount = amount;
         asset.price = price;
 
         // ** Proveedor necesita aprobar traspaso de activos al contrato
-        digitalAssets.safeTransferFrom(msg.sender, address(this), id, amount, "");
+        digitalAssets.safeTransferFrom(
+            msg.sender,
+            address(this),
+            id,
+            amount,
+            ""
+        );
 
         emit AssetSupplied(msg.sender, id, amount, price);
     }
@@ -238,24 +287,29 @@ contract Trading is Ownable, Pausable, ERC1155Holder, ReentrancyGuard {
     @notice Compra un activo a un inversor que realizó una oferta aprobada
     @param seller (address) Dirección del inversor que realizó la oferta
     @param id (uint256) Identificador del activo
-    @param amount (uint56) Cantidad solicitada
+    @param amount (uint256) Cantidad solicitada
         @dev La cantidad a comprar debe ser positiva
         @dev La cantidad a comprar no puede exceder la cantidad ofertada
         @dev La oferta debe existir y estar aprobada por el fondo
         @dev El inversor debe tener el balance suficiente para la compra
     */
-    function buyAsset(address seller, uint256 id, uint56 amount) external whenNotPaused nonReentrant {
+    function buyAsset(
+        address seller,
+        uint256 id,
+        uint256 amount
+    ) external whenNotPaused nonReentrant {
         if (amount <= 0) revert ErrorAmountMustBePositive(amount);
 
         Asset storage asset = offers[id][seller];
         if (amount > asset.amount) revert ErrorAmountExceded(asset.amount);
         if (!asset.approved || asset.amount < 0) revert ErrorAssetNotExist(id);
 
-        uint128 value = amount * asset.price;
+        uint256 value = amount * asset.price;
 
-        if (digitalCurrency.balanceOf(msg.sender) < value) revert ErrorNotEnoughBalance(value);
+        if (digitalCurrency.balanceOf(msg.sender) < value)
+            revert ErrorNotEnoughBalance(value);
 
-        uint128 price = asset.price;
+        uint256 price = asset.price;
         asset.amount -= amount;
         if (asset.amount == 0) {
             asset.price = 0;
@@ -265,11 +319,16 @@ contract Trading is Ownable, Pausable, ERC1155Holder, ReentrancyGuard {
         // ** Comprador necesita aprobar traspaso de tokens al contrato
         digitalCurrency.transferFrom(msg.sender, seller, value);
 
-        digitalAssets.safeTransferFrom(address(this), msg.sender, id, amount, "");
+        digitalAssets.safeTransferFrom(
+            address(this),
+            msg.sender,
+            id,
+            amount,
+            ""
+        );
 
         emit AssetBought(msg.sender, seller, id, amount, price);
     }
-
 
     /**
     @notice Cancela una oferta de activo realizada por el inversor
@@ -295,14 +354,20 @@ contract Trading is Ownable, Pausable, ERC1155Holder, ReentrancyGuard {
         @dev Los activos disponibles se transfieren del contrato al inversor
     */
     function withdrawAssets(uint256 id) external whenNotPaused nonReentrant {
-        uint56 withdrawable = withdrawableAssets[msg.sender][id];
+        uint256 withdrawable = withdrawableAssets[msg.sender][id];
         if (withdrawable <= 0) revert ErrorNotEnoughBalance(withdrawable);
 
         delete withdrawableAssets[msg.sender][id];
 
         // Devolver activos al inversor
-        digitalAssets.safeTransferFrom(address(this), msg.sender, id, withdrawable, "");
+        digitalAssets.safeTransferFrom(
+            address(this),
+            msg.sender,
+            id,
+            withdrawable,
+            ""
+        );
 
-        emit AssetsWithdrawn(msg.sender, id, withdrawable); 
+        emit AssetsWithdrawn(msg.sender, id, withdrawable);
     }
 }
