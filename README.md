@@ -1,4 +1,3 @@
-*Juan Carlos Del Río Ruger*
 ## Caso Práctico Máster en Ingeniería y Desarrollo Blockchain
 ### Modelización de un Sistema de Compra-Venta de Activos Tokenizados - Smart Contracts 
 
