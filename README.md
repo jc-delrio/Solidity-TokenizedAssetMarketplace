@@ -1,5 +1,5 @@
 *Juan Carlos Del Río Ruger*
-## Caso Práctico Máster en Ingeniería y Desarrollo Blockchain V1
+## Caso Práctico Máster en Ingeniería y Desarrollo Blockchain
 ### Modelización de un Sistema de Compra-Venta de Activos Tokenizados - Smart Contracts 
 
 # 1. ELECCIÓN DE TOKENS
@@ -34,21 +34,21 @@ Los **activos digitales** se definen con el estándar mixto ERC1155.
 1. Descomprrimir el archivo del caso práctico
 2. npm install : Instala dependencias usadas
 3. npx hardhat compile : Compilar archivos del proyecto
-7. npx hardhat test: Ejecución de baterias de test programadas
+4. npx hardhat test: Ejecución de baterias de test programadas
 
 # 3. CONTRATOS
 
 ## 3.1. Contrato Acquisition
 ### 3.1.1 Funciones
-- **pause / unpause**: Permite habilitar/desabilitar funciones críticas como commprar y vender activos en caso de deteccion de busg.
+- **pause / unpause**: Permite habilitar/desabilitar funciones críticas como comprar y vender activos en caso de deteccion de bug.
 
-- **listNewAsset**: Registers a new asset in the catalog (ID, Price, Stock).
-- **restockAsset**: Increases the inventory of an existing asset. 
-- **delistAsset**: Removes inventory from the market (unsold stock only).   
-- **updateAsset**: Updates the price or the marketable status of an asset.   
+- **listNewAsset**: Registra un nuevo activo en el catálogo (ID, Precio, Stock).
+- **restockAsset**: Aumenta el inventario de un activo existente. 
+- **delistAsset**: Elimina el inventario del mercado (solo stock no vendido).   
+- **updateAsset**: Actualiza el precio o el estado negociable de un activo.   
  
-- **buyAsset**: Buys assets. Requires: Prior approve of the ERC20 token.  
-- **sellAsset**: Sells assets back to the fund. Requires: Asset marked as marketable and setApprovalForAll of the ERC1155.  
+- **buyAsset**: Compra activos. Requiere: Previa aprobación del token ERC20.  
+- **sellAsset**: Vende activos de vuelta al fondo. Requiere: Activo marcado como negociable y setApprovalForAll del ERC1155.  
 
 ### 3.1.2 Flujo Principal
     Este Contrato permite a los inversores la adquisición inicial de activos disponibles por el fondo de inversión.
@@ -59,12 +59,12 @@ Los **activos digitales** se definen con el estándar mixto ERC1155.
         - Activos Unicos (No Fungibles - NFT)
         - Activos Fraccionados (Fungibles / Semi-Fungibles)
 
-    Si los activos son declarados por el fondo de inversion como negocibles (modificable siempre que los activos estén sin adquirir), el inversor
+    Si los activos son declarados por el fondo de inversion como negociables (modificable siempre que los activos estén sin adquirir), el inversor
     puede venderlos de vuelta al fondo de inversión.
 
 ## 3.2. Contrato Compraventa entre inversores
-### 3.1.1 Funciones
-- **pause / unpause**: Permite habilitar/desabilitar funciones críticas como commprar y vender activos en caso de deteccion de busg.
+### 3.2.1 Funciones
+- **pause / unpause**: Permite habilitar/desabilitar funciones críticas como comprar y vender activos en caso de deteccion de bug.
 
 - **request**: Un inversor solicita un activo para su compra, cuando no se conoce un vendedor. El inversor deposita el balance necesario en el contrato como garantía.
 - **approveDemand**: El Fondo aprueba la solicitud realizada por un inversor.
@@ -78,7 +78,7 @@ Los **activos digitales** se definen con el estándar mixto ERC1155.
 - **cancelSupply**: Un inversor cancela una oferta realizada por él mismo. Los activos pasan a su disposición para ser retirado.
 - **withdrawAssets**: Un inversor puede retirar los activos de una oferta cancelada.
 
-### 3.1.2 Flujo Principal
+### 3.2.2 Flujo Principal
     Para la compraventa entre inversores se ha implementado la funcionalidad de hacer visibles ofertas y demandas.
     Esto permite exponer las peticiones para que otro interesado ejecute la acción de compra o venta.
     > Es necesario que la solicitud o demanda sea realizada previamente para permitir el intercambio.    
@@ -114,5 +114,5 @@ Entre los test realizados se incluyen:
 # 5. FUTURAS MEJORAS
 - Implemetar capas de seguridad para tokens
 - Añadir tasas por el uso de la plataforma
-- En adquisiciones iniciales, no realizar transferencias directas al fondo. Acumular balance para retirar para ahorro de gas.
-- Mejorar mecanismo de cancelación de ofertas/demandas para permiti a los inversores usar balance y activos ya almacenados en el contrato para nuevas ofertas/demandas
+- En adquisiciones iniciales, no realizar transferencias directas al fondo. Acumular balance antes de retirar para ahorro de gas.
+- Mejorar mecanismo de cancelación de ofertas/demandas para permitir a los inversores usar balance y activos ya almacenados en el contrato para nuevas ofertas/demandas

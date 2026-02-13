@@ -10,12 +10,19 @@ import {
 contract DigitalCurrency is ERC20, Ownable, ERC20Pausable {
     constructor() ERC20("digitalCurrency", "CBDC") Ownable(msg.sender) {}
 
+    event TokenMinted(address indexed to, uint256 value);
+    event TokenBurned(address indexed from, uint256 value);
+    event ContractPaused(address indexed owner);
+    event ContractUnpaused(address indexed owner);
+
     function pause() external onlyOwner {
         _pause();
+        emit ContractPaused(msg.sender);
     }
 
     function unpause() external onlyOwner {
         _unpause();
+        emit ContractUnpaused(msg.sender);
     }
 
     function _update(
@@ -28,9 +35,11 @@ contract DigitalCurrency is ERC20, Ownable, ERC20Pausable {
 
     function mint(address to, uint256 value) external onlyOwner whenNotPaused {
         _mint(to, value);
+        emit TokenMinted(to, value);
     }
 
     function burn(uint256 value) external whenNotPaused {
         _burn(msg.sender, value);
+        emit TokenBurned(msg.sender, value);
     }
 }

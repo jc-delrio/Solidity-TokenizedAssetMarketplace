@@ -16,8 +16,6 @@ import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 contract Acquisition is Ownable, Pausable, ReentrancyGuard {
     error ErrorAddressNotAllowed();
     error ErrorAssetNotAvailable(uint256 id);
-    error ErrorAssetAlreadyListed(uint256 id);
-    error ErrorAllAssetsAlreadyListed(uint256 supply);
     error ErrorInsufficientBalance(uint256 value, uint256 balance);
     error ErrorInsufficientAssets(uint256 available, uint256 requested);
     error ErrorAssetNotMarketable(uint256 id);
@@ -36,8 +34,7 @@ contract Acquisition is Ownable, Pausable, ReentrancyGuard {
     mapping(uint256 => Asset) public assetList;
 
     event AssetListed(uint256 indexed id, uint256 supply, uint256 value);
-    event AssetDelisted(uint256 indexed id, uint256 supply, uint256 value);
-    event AssetRestocked(uint256 indexed id, uint256 listed);
+    event AssetDelisted(uint256 indexed id, uint256 desupply, uint256 value);
     event AssetUpdated(uint256 indexed id, uint256 value, bool marketable);
     event AssetBought(
         address indexed buyer,
@@ -91,10 +88,6 @@ contract Acquisition is Ownable, Pausable, ReentrancyGuard {
         uint256 value,
         bool marketable
     ) external onlyOwner inputChecks(supply) inputChecks(value) {
-        Asset storage asset = assetList[id];
-        // El activo no debe estar suministrado
-        if (asset.listed > 0) revert ErrorAssetAlreadyListed(id);
-
         uint256 balance = uint256(digitalAssets.balanceOf(owner(), id));
         // El fondo debe poseer la cantidad que desea suministrar
         if (supply > balance) revert ErrorInsufficientAssets(balance, supply);
@@ -108,40 +101,6 @@ contract Acquisition is Ownable, Pausable, ReentrancyGuard {
         });
 
         emit AssetListed(id, supply, value);
-    }
-
-    /**
-    @notice Aumenta la cantidad de activos ya existentes para su negociación
-    @param id (uint256) Identificador del activo
-    @param supply (uint256) Cantidad a suministrar
-        @dev Solo el Fondo de Inversión puede suministrar activos
-        @dev La cantidad a suministrar debe ser mayor a cero
-        @dev El activo DEBE estar suministrado previamente
-        @dev No debe superar la cantidad máxima de activos disponibles
-        @dev El fondo debe poseer la cantidad que desea suministrar
-    */
-    function restockAsset(
-        uint256 id,
-        uint256 supply
-    ) external onlyOwner inputChecks(supply) {
-        Asset storage asset = assetList[id];
-        // El activo debe estar suministrado
-        if (asset.listed == 0) revert ErrorAssetNotAvailable(id);
-
-        uint256 balance = uint256(digitalAssets.balanceOf(owner(), id));
-        // No hay mas activos disponibles para suministrar
-        if (asset.listed == balance)
-            revert ErrorAllAssetsAlreadyListed(balance);
-
-        uint256 rest = balance - asset.available;
-        // El fondo debe poseer la cantidad que desea suministrar
-        if (supply > rest) revert ErrorInsufficientAssets(rest, supply);
-
-        // Se actualizan las cantidades del activo
-        asset.listed += supply;
-        asset.available += supply;
-
-        emit AssetRestocked(id, supply);
     }
 
     /**
@@ -169,9 +128,12 @@ contract Acquisition is Ownable, Pausable, ReentrancyGuard {
         unchecked {
             asset.listed -= desupply;
             asset.available -= desupply;
+            if (asset.listed == 0) {
+                delete assetList[id];
+            }
         }
 
-        emit AssetDelisted(id, asset.listed, asset.value);
+        emit AssetDelisted(id, desupply, asset.value);
     }
 
     /**
